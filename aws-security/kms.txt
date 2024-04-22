@@ -1,0 +1,21 @@
+#Enable S3 MFA deletion -- only performed by root
+aws s3api put-bucket-versioning --bucket ddai-demo-123344dds --versioning-configuration Status=Enabled,MFADelete=Enabled --mfa "arn:aws:iam::831139277107:mfa/demo-device 718955"
+# List the alias
+aws kms list-aliases
+# Encryption
+aws kms encrypt --key-id alias/demo-key --query CiphertextBlob --output text --plaintext fileb://data.txt > encrypted-data.base64
+certutil -decode .\encrypted-data.base64 .\encrypted-data.dat
+# Decryption
+aws kms decrypt --ciphertext-blob fileb://encrypted-data.dat --query Plaintext --output text
+# Generate CMKs with your own key material
+aws kms create-key --origin EXTERNAL
+# run the following command with the external-key-id from above. Copy PublicKey to pkey.b64 and ImportToken to token.b64
+aws kms get-parameters-for-import --key-id external-key-id  --wrapping-algorithm RSAES_OAEP_SHA_1 --wrapping-key-spec RSA_2048
+# Generate data key, copy the ciphertextblob to b64 file and run certutil to decode it
+aws kms generate-data-key --key-id alias/demo-key --key-spec AES_256
+# use openssl to encrypt/decrpyt image files using the plaintext data key
+openssl enc -e -aes-256-cbc -k yGX6cEFRUH8wwYrVP7184RVTZ7Ajiudk+r+UOeqRWV4= -p -in .\cloud.jpg -out encrypted-cloud.dat
+#Retreive the data-key from the encrypted data-key
+certutil -decode .\encrypted-data-key.txt encrypted-data-key.dat
+aws kms decrypt --ciphertext-blob fileb://encrypted-data-key.dat --query Plaintext --output text
+openssl enc -d -aes-256-cbc -k yGX6cEFRUH8wwYrVP7184RVTZ7Ajiudk+r+UOeqRWV4= -p -in .\encrypted-cloud.jpg -out cloud2.jpg
